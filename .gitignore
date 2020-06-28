@@ -1,2 +1,3 @@
 /node_modules/
 /indexeddb-to-json-output/
+/discovered-indexeddb-*.csv

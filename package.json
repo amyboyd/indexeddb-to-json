@@ -3,8 +3,14 @@
   "description": "Extract IndexedDB to JSON, from any Chrome or Electron database directory",
   "version": "0.0.2",
   "main": "index.js",
-  "bin": "./index.js",
+  "bin": {
+    "indexeddb-to-json": "./index.js",
+    "discover-indexeddb": "./discover-databases.js"
+  },
   "dependencies": {
+    "csv-writer": "^1.6.0",
+    "get-folder-size": "^2.0.1",
+    "glob": "^7.1.6",
     "puppeteer": "^2.1.1",
     "recursive-copy": "^2.0.10"
   },

@@ -8,7 +8,7 @@ Using NPM: `npm install -g indexeddb-to-json`
 
 Using Yarn: `yarn global add indexeddb-to-json`
 
-## Usage
+## Usage of `indexeddb-to-json`
 
 `indexeddb-to-json [directory] [-p]`
 
@@ -17,6 +17,14 @@ The `directory` parameter must be an IndexedDB directory, which could be from a 
 Add `-p` to print to stdout instead of writing to a file.
 
 (If you want to run the executable without installing it, use `npx indexeddb-to-json`)
+
+## Usage of `discover-indexeddb`
+
+This command tries to find all IndexedDB databases in common directories.
+
+`discover-indexeddb --csv` will write all discovered databases to a .csv file.
+
+`discover-indexeddb --stdout` will print all discovered databases to stdout in a CSV format.
 
 ## Examples
 
@@ -32,7 +40,7 @@ Extract from the Slack website on MacOS:
 Extract from the Microsoft Teams website on MacOS:  
 `indexeddb-to-json ~/Library/Application\ Support/Google/Chrome/Default/IndexedDB/https_teams.microsoft.com_0.indexeddb.leveldb`
 
-Note: these Chrome examples use the `Default` profile, but you can use any profile directory e.g. `..../Chrome/Profile\ 2/IndexDB/....`
+Note: these Chrome examples use the `Default` profile, but you can use any profile directory e.g. `..../Chrome/Profile\ 2/IndexedDB/....`
 
 On Windows, the default Chrome profile is at: `C:\Users\USERNAME\AppData\Local\Google\Chrome\User Data\Default`
 

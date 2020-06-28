@@ -10,7 +10,7 @@ const path = require('path');
 const os = require('os');
 const puppeteer = require('puppeteer');
 const copy = require('recursive-copy');
-const outputDir = 'indexeddb-to-json-output';
+const {timestampForFilename} = require('./utils');
 
 process.on('uncaughtException', function(e) {
     console.error('Uncaught exception', e);
@@ -55,6 +55,7 @@ console.log('Host:', host);
 console.log('Creating temporary Chrome directory:', chromeDir);
 
 const printToStdout = process.argv[3] === '-p';
+const outputDir = 'indexeddb-to-json-output';
 
 (async () => {
     try {
@@ -156,11 +157,7 @@ const printToStdout = process.argv[3] === '-p';
             if (!fs.existsSync(outputDir + '/')) {
                 fs.mkdirSync(outputDir + '/');
             }
-            const timestamp = (new Date())
-                .toISOString()
-                .replace(/[/:]/g, '-')
-                .replace(/\.\d+Z$/, '')
-                .replace('T', '-at-');
+            const timestamp = timestampForFilename();
             const outputFile = outputDir + '/' + host.replace('://', '_') + '-' + timestamp + '.json';
             fs.writeFileSync(outputFile, json);
             console.log('Wrote JSON to:', outputFile);
