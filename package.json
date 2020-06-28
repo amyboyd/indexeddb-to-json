@@ -1,7 +1,7 @@
 {
   "name": "indexeddb-to-json",
   "description": "Extract IndexedDB to JSON, from any Chrome or Electron database directory",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "main": "index.js",
   "bin": {
     "indexeddb-to-json": "./index.js",
