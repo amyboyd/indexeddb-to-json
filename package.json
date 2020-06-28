@@ -1,0 +1,19 @@
+{
+  "name": "indexeddb-to-json",
+  "description": "Extract IndexedDB to JSON, from any Chrome or Electron database directory",
+  "version": "0.0.2",
+  "main": "index.js",
+  "bin": "./index.js",
+  "dependencies": {
+    "puppeteer": "^2.1.1",
+    "recursive-copy": "^2.0.10"
+  },
+  "engines": {
+    "node": ">=13.3.0"
+  },
+  "files": [
+    "index.js",
+    "yarn.lock",
+    "README.md"
+  ]
+}
