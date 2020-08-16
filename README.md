@@ -1,6 +1,8 @@
 # IndexedDB to JSON
 
-Extract IndexedDB to JSON, from any Chrome or Electron database directory.
+CLI tool for converting any IndexedDB directory -- including from Chrome or an Electron app -- to a JSON file.
+
+The tool abuses a local Chome installation to unlock Google's secret/undocumented file structure.
 
 ## Install
 
@@ -8,7 +10,7 @@ Using NPM: `npm install -g indexeddb-to-json`
 
 Using Yarn: `yarn global add indexeddb-to-json`
 
-(Or, if you want to run the executable without installing it, use `npx indexeddb-to-json`)
+If you want to run it without a permanent installation, use `npx indexeddb-to-json`
 
 ## Usage of `extract`
 
@@ -50,3 +52,7 @@ You can also extract from old backups, e.g. if you use MacOS's Time Machine, use
 `/Volumes/HARD-DRIVE-NAME/Backups.backupdb/LAPTOP-NAME/TIMESTAMP/LAPTOP-NAME - Data/Users/USER-NAME/Library/Application Support/Google/Chrome/Default/IndexedDB/https_teams.microsoft.com_0.indexeddb.leveldb`  
 or  
 `/Volumes/HARD-DRIVE-NAME/Backups.backupdb/LAPTOP-NAME/TIMESTAMP/LAPTOP-NAME - Data/Users/USER-NAME/Library/Containers/com.tinyspeck.slackmacgap/Data/Library/Application Support/Slack/IndexedDB/https_app.slack.com_0.indexeddb.leveldb`
+
+## Contributing
+
+Please lint code changes with `yarn lint-check` and `yarn lint-fix`.

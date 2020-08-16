@@ -86,6 +86,9 @@ module.exports = async function extract(source, options) {
             console.log(`Database "${db.name}" version ${db.version}`);
 
             return new Promise(function (resolveDb, rejectDb) {
+                const rejectFromError = (reason, error) =>
+                    rejectDb(new Error(`${reason}: ${error}`));
+
                 const connection = window.indexedDB.open(db.name);
                 connection.onsuccess = async () => {
                     const objectStoreNames = Array.from(connection.result.objectStoreNames);
@@ -106,21 +109,15 @@ module.exports = async function extract(source, options) {
                     try {
                         await Promise.all(resolveStorePromises);
                     } catch (e) {
-                        rejectDb(new Error(`Error resolving object store: ${e}`));
+                        rejectFromError('Error resolving object store', e);
                         return;
                     }
 
                     resolveDb(dbExportObject);
                 };
-                connection.onerror = (error) => {
-                    rejectDb(new Error(`Connection failed${error}`));
-                };
-                connection.onupgradeneeded = (error) => {
-                    rejectDb(new Error(`Upgrade needed: ${error}`));
-                };
-                connection.onblocked = function (error) {
-                    rejectDb(new Error(`Blocked: ${error}`));
-                };
+                connection.onerror = (e) => rejectFromError('Connection failed', e);
+                connection.onupgradeneeded = (e) => rejectFromError('Upgrade needed', e);
+                connection.onblocked = (e) => rejectFromError('Blocked', e);
             });
         };
 
@@ -138,6 +135,7 @@ module.exports = async function extract(source, options) {
         ignoreHTTPSErrors: true,
         args: [
             // See https://peter.sh/experiments/chromium-command-line-switches/
+            // Yeah, this code is for real.
             '--allow-failed-policy-fetch-for-test',
             '--allow-insecure-localhost',
             '--allow-no-sandbox-job',
@@ -167,8 +165,8 @@ module.exports = async function extract(source, options) {
             '--unsafely-allow-protected-media-identifier-for-domain',
             '--unsafely-treat-insecure-origin-as-secure',
             '--webview-disable-safebrowsing-support',
-            options.verbose ? '--enable-logging' : '',
             '--v=1',
+            options.verbose ? '--enable-logging' : '',
         ],
     });
 
