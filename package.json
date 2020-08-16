@@ -1,7 +1,7 @@
 {
   "name": "indexeddb-to-json",
   "description": "Extract IndexedDB to JSON, from any Chrome or Electron database directory",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "main": "src/cli.js",
   "scripts": {
     "lint-fix": "prettier --write './*.js'; eslint ./*.js .eslintrc.js --fix",
@@ -25,8 +25,9 @@
     "node": ">=13.3.0"
   },
   "files": [
-    "cli/",
+    "src/",
     "yarn.lock",
     "README.md"
-  ]
+  ],
+  "bin": "src/cli.js"
 }
