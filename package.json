@@ -7,6 +7,12 @@
     "indexeddb-to-json": "./index.js",
     "discover-indexeddb": "./discover-databases.js"
   },
+  "scripts": {
+    "lint-fix": "prettier --write './*.js'; eslint ./*.js .eslintrc.js --fix",
+    "lint-check": "prettier --check './*.js'; eslint ./*.js .eslintrc.js",
+    "lf": "yarn lint-fix",
+    "lc": "yarn lint-check"
+  },
   "dependencies": {
     "csv-writer": "^1.6.0",
     "get-folder-size": "^2.0.1",
@@ -14,11 +20,17 @@
     "puppeteer": "^2.1.1",
     "recursive-copy": "^2.0.10"
   },
+  "devDependencies": {
+    "eslint": "^7.7.0",
+    "prettier": "^2.0.5"
+  },
   "engines": {
     "node": ">=13.3.0"
   },
   "files": [
     "index.js",
+    "utils.js",
+    "discover-databases.js",
     "yarn.lock",
     "README.md"
   ]

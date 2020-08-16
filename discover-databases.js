@@ -1,16 +1,23 @@
 #!/usr/bin/env node
 
 const homedir = require('os').homedir();
-const {createObjectCsvWriter, createObjectCsvStringifier} = require('csv-writer');
-const {timestampForFilename, unique, getFolderSizeInMb, globPromise} = require('./utils');
+const {
+    createObjectCsvWriter,
+    createObjectCsvStringifier,
+} = require('csv-writer');
+const {
+    timestampForFilename,
+    getFolderSizeInMb,
+    globPromise,
+    handleUncaughtExceptionsAndRejections,
+} = require('./utils');
 
-process.on('uncaughtException', function (e) {
-    console.error('Uncaught exception', e);
-});
+handleUncaughtExceptionsAndRejections();
 
-const outputType = (process.argv.length >= 3 && process.argv[2] === '--stdout')
-    ? 'stdout'
-    : 'csv';
+const outputType =
+    process.argv.length >= 3 && process.argv[2] === '--stdout'
+        ? 'stdout'
+        : 'csv';
 
 const searchPaths = [
     // MacOS:
@@ -25,10 +32,7 @@ const searchPaths = [
     // '/Volumes/*/Backups.backupdb/*/*/* - Data/Users/*/Library'
 ];
 
-const ignoreDirs = [
-    '**/.git/**',
-    '**/node_modules/**',
-];
+const ignoreDirs = ['**/.git/**', '**/node_modules/**'];
 
 async function findIndexedDbRootInPath(path) {
     const roots = await globPromise('**/CURRENT', {
@@ -40,38 +44,43 @@ async function findIndexedDbRootInPath(path) {
         dot: true,
         ignore: ignoreDirs,
     });
-    return roots.map(file => file.replace(/\/CURRENT$/, ''));
+    return roots.map((file) => file.replace(/\/CURRENT$/, ''));
 }
 
-searchPaths.forEach(searchPath => {
+searchPaths.forEach((searchPath) => {
     if (!searchPath.startsWith('/')) {
         throw new Error('Search path must start with / but got: ' + searchPath);
     } else if (searchPath.endsWith('/')) {
-        throw new Error('Search path must not end with / but got: ' + searchPath);
+        throw new Error(
+            'Search path must not end with / but got: ' + searchPath,
+        );
     }
     console.log('Searching ' + searchPath);
 });
 
 (async function () {
-    const potentialDirs = (await Promise.all(searchPaths.map(async searchPath => {
+    const globs = searchPaths.map((searchPath) => {
         return globPromise(searchPath + '/**/*indexeddb*/', {
-                realpath: true,
-                nosort: true,
-                nocase: true,
-                dot: true,
-                ignore: ignoreDirs,
-            });
-        })))
-        .filter(dir => dir.length > 0)
+            realpath: true,
+            nosort: true,
+            nocase: true,
+            dot: true,
+            ignore: ignoreDirs,
+        });
+    });
+    const potentialDirs = (await Promise.all(globs))
+        .filter((dir) => dir.length > 0)
         .reduce((prev, current) => {
             return prev.concat(current);
         }, [])
         .unique();
 
-    const indexedDbRoots = (await Promise.all(potentialDirs.map(async dir => {
-            return findIndexedDbRootInPath(dir);
-        })))
-        .filter(roots => roots.length > 0)
+    const indexedDbRoots = (
+        await Promise.all(
+            potentialDirs.map((dir) => findIndexedDbRootInPath(dir)),
+        )
+    )
+        .filter((roots) => roots.length > 0)
         .reduce((prev, current) => {
             return prev.concat(current);
         }, [])
@@ -90,15 +99,18 @@ searchPaths.forEach(searchPath => {
             {id: 'size', title: 'Size in MB'},
         ];
 
-        const csvRows = await Promise.all(roots.map(async (root) => {
-            return {
-                path: root,
-                size: await getFolderSizeInMb(root),
-            };
-        }));
+        const csvRows = await Promise.all(
+            roots.map(async (root) => {
+                return {
+                    path: root,
+                    size: await getFolderSizeInMb(root),
+                };
+            }),
+        );
 
         if (outputType === 'csv') {
-            const outputFile = 'discovered-indexeddb-' + timestampForFilename() + '.csv';
+            const outputFile =
+                'discovered-indexeddb-' + timestampForFilename() + '.csv';
             const csvWriter = createObjectCsvWriter({
                 path: outputFile,
                 header: csvHeaders,

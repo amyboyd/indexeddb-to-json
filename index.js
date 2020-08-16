@@ -10,41 +10,39 @@ const path = require('path');
 const os = require('os');
 const puppeteer = require('puppeteer');
 const copy = require('recursive-copy');
-const {timestampForFilename} = require('./utils');
+const {
+    timestampForFilename,
+    handleUncaughtExceptionsAndRejections,
+} = require('./utils');
 
-process.on('uncaughtException', function(e) {
-    console.error('Uncaught exception', e);
-});
+handleUncaughtExceptionsAndRejections();
 
 let source = process.argv[2];
 if (!source) {
-    console.error('No source directory given');
-    process.exit(1);
-    return;
+    throw new Error('No source directory given');
 }
 
 if (!fs.existsSync(source)) {
-    console.error('Source directory does not exist:', source);
-    process.exit(1);
-    return;
+    throw new Error(`Source directory does not exist: ${source}`);
 }
 
 source = source.replace(/\/+$/, '');
 
 if (!source.endsWith('_0.indexeddb.leveldb')) {
-    console.error('Source directory does not end with "_0.indexeddb.leveldb":', source);
-    process.exit(1);
-    return;
+    throw new Error(
+        `Source directory does not end with "_0.indexeddb.leveldb": ${source}`,
+    );
 }
 
 if (!fs.existsSync(source + '/CURRENT')) {
-    console.error('Source directory does not contain IndexedDB file:', source + '/CURRENT');
-    process.exit(1);
-    return;
+    throw new Error(
+        `Source directory does not contain IndexedDB file: ${source}/CURRENT`,
+    );
 }
 
 const sourceLastDir = source.substring(source.lastIndexOf('/') + 1);
-const host = sourceLastDir.replace('_0.indexeddb.leveldb', '')
+const host = sourceLastDir
+    .replace('_0.indexeddb.leveldb', '')
     .replace(/^http_/, 'http://')
     .replace(/^https_/, 'https://');
 
@@ -79,11 +77,11 @@ const outputDir = 'indexeddb-to-json-output';
         await page.setCacheEnabled(false);
         await page.setOfflineMode(false);
         await page.setRequestInterception(true);
-        page.on('request', request => {
+        page.on('request', (request) => {
             request.respond({
                 status: 200,
                 contentType: 'text/html',
-                body: 'Fake page'
+                body: 'Fake page',
             });
         });
 
@@ -94,8 +92,9 @@ const outputDir = 'indexeddb-to-json-output';
             const dbPromises = databases.map((db) => {
                 return new Promise(function (resolveDb, rejectDb) {
                     const connection = window.indexedDB.open(db.name);
-                    connection.onsuccess = async (e) => {
-                        const objectStoreNames = connection.result.objectStoreNames;
+                    connection.onsuccess = async () => {
+                        const objectStoreNames =
+                            connection.result.objectStoreNames;
                         const dbExportObject = {database: db.name, stores: {}};
 
                         await Promise.all(Array.from(objectStoreNames).map((storeName) => {
@@ -142,7 +141,11 @@ const outputDir = 'indexeddb-to-json-output';
             return prev + Object.keys(current.stores).length;
         }, 0);
 
-        console.log(`Extracted ${databasesCount} database(s) containing ${storesCount} store(s)`);
+        console.log(
+            `Extracted ${databasesCount} database(s) containing ${storesCount} store(s)`,
+        );
+
+        // console.log(fs.readFileSync(chromeDir + '/chrome_debug.log', 'utf8'));
 
         await browser.close();
 
