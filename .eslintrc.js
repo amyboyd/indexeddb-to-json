@@ -10,6 +10,12 @@ module.exports = {
     extends: ['eslint:recommended'],
     ignorePatterns: ['node_modules'],
     rules: {
-        'max-len': ['error', {code: 120, ignoreStrings: true}],
+        'max-len': [
+            'error',
+            {
+                code: 100,
+                ignoreStrings: true,
+            },
+        ],
     },
 };

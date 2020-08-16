@@ -47,22 +47,9 @@ async function globPromise(pattern, options) {
     });
 }
 
-function handleUncaughtExceptionsAndRejections() {
-    process.on('uncaughtException', function (e) {
-        console.error(e);
-        process.exit(1);
-    });
-
-    process.on('unhandledRejection', function (e) {
-        console.error(e);
-        process.exit(1);
-    });
-}
-
 module.exports = {
     timestampForFilename,
     unique,
     getFolderSizeInMb,
     globPromise,
-    handleUncaughtExceptionsAndRejections,
 };

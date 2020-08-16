@@ -1,12 +1,8 @@
 {
   "name": "indexeddb-to-json",
   "description": "Extract IndexedDB to JSON, from any Chrome or Electron database directory",
-  "version": "0.0.3",
-  "main": "index.js",
-  "bin": {
-    "indexeddb-to-json": "./index.js",
-    "discover-indexeddb": "./discover-databases.js"
-  },
+  "version": "0.0.4",
+  "main": "src/cli.js",
   "scripts": {
     "lint-fix": "prettier --write './*.js'; eslint ./*.js .eslintrc.js --fix",
     "lint-check": "prettier --check './*.js'; eslint ./*.js .eslintrc.js",
@@ -14,6 +10,7 @@
     "lc": "yarn lint-check"
   },
   "dependencies": {
+    "commander": "^6.0.0",
     "csv-writer": "^1.6.0",
     "get-folder-size": "^2.0.1",
     "glob": "^7.1.6",
@@ -28,9 +25,7 @@
     "node": ">=13.3.0"
   },
   "files": [
-    "index.js",
-    "utils.js",
-    "discover-databases.js",
+    "cli/",
     "yarn.lock",
     "README.md"
   ]

@@ -8,25 +8,25 @@ Using NPM: `npm install -g indexeddb-to-json`
 
 Using Yarn: `yarn global add indexeddb-to-json`
 
-## Usage of `indexeddb-to-json`
+(Or, if you want to run the executable without installing it, use `npx indexeddb-to-json`)
 
-`indexeddb-to-json [directory] [-p]`
+## Usage of `extract`
+
+`indexeddb-to-json extract [directory]`
 
 The `directory` parameter must be an IndexedDB directory, which could be from a Chrome user profile or an Electron app.
 
-Add `-p` to print to stdout instead of writing to a file.
-
-(If you want to run the executable without installing it, use `npx indexeddb-to-json`)
-
-## Usage of `discover-indexeddb`
+## Usage of `discover`
 
 This command tries to find all IndexedDB databases in common directories.
 
-`discover-indexeddb --csv` will write all discovered databases to a .csv file.
+`indexeddb-to-json discover --csv` will print discovered databases to a .csv file.
 
-`discover-indexeddb --stdout` will print all discovered databases to stdout in a CSV format.
+`indexeddb-to-json discover --stdout` will print discovered databases to stdout.
 
 ## Examples
+
+Run `indexeddb-to-json -h` or `indexeddb-to-json help [command]` for more information and options.
 
 Extract from the Slack app (based on Electron) on MacOS:  
 `indexeddb-to-json ~/Library/Containers/com.tinyspeck.slackmacgap/Data/Library/Application\ Support/Slack/IndexedDB/https_app.slack.com_0.indexeddb.leveldb`

@@ -1,56 +1,45 @@
-#!/usr/bin/env node
-
 const homedir = require('os').homedir();
 const {createObjectCsvWriter, createObjectCsvStringifier} = require('csv-writer');
-const {
-    timestampForFilename,
-    getFolderSizeInMb,
-    globPromise,
-    handleUncaughtExceptionsAndRejections,
-} = require('./utils');
+const {timestampForFilename, getFolderSizeInMb, globPromise} = require('./utils');
 
-handleUncaughtExceptionsAndRejections();
+module.exports = async function discover(options) {
+    const searchPaths = [
+        // MacOS:
+        `${homedir}/Library`,
+        // Windows:
+        `${homedir}/AppData`,
+        // Linux:
+        `${homedir}/.config`,
+        // You might also want to search:
+        // homedir,
+        // MacOS's Time Machine backups:
+        // '/Volumes/*/Backups.backupdb/*/*/* - Data/Users/*/Library'
+    ];
 
-const outputType = process.argv.length >= 3 && process.argv[2] === '--stdout' ? 'stdout' : 'csv';
+    const ignoreDirs = ['**/.git/**', '**/node_modules/**'];
 
-const searchPaths = [
-    // MacOS:
-    `${homedir}/Library`,
-    // Windows:
-    `${homedir}/AppData`,
-    // Linux:
-    `${homedir}/.config`,
-    // You might also want to search:
-    // homedir,
-    // MacOS's Time Machine backups:
-    // '/Volumes/*/Backups.backupdb/*/*/* - Data/Users/*/Library'
-];
-
-const ignoreDirs = ['**/.git/**', '**/node_modules/**'];
-
-async function findIndexedDbRootInPath(path) {
-    const roots = await globPromise('**/CURRENT', {
-        cwd: path,
-        realpath: true,
-        nosort: true,
-        nodir: true,
-        nocase: false,
-        dot: true,
-        ignore: ignoreDirs,
-    });
-    return roots.map((file) => file.replace(/\/CURRENT$/, ''));
-}
-
-searchPaths.forEach((searchPath) => {
-    if (!searchPath.startsWith('/')) {
-        throw new Error('Search path must start with / but got: ' + searchPath);
-    } else if (searchPath.endsWith('/')) {
-        throw new Error('Search path must not end with / but got: ' + searchPath);
+    async function findIndexedDbRootInPath(path) {
+        const roots = await globPromise('**/CURRENT', {
+            cwd: path,
+            realpath: true,
+            nosort: true,
+            nodir: true,
+            nocase: false,
+            dot: true,
+            ignore: ignoreDirs,
+        });
+        return roots.map((file) => file.replace(/\/CURRENT$/, ''));
     }
-    console.log('Searching ' + searchPath);
-});
 
-(async function () {
+    searchPaths.forEach((searchPath) => {
+        if (!searchPath.startsWith('/')) {
+            throw new Error('Search path must start with / but got: ' + searchPath);
+        } else if (searchPath.endsWith('/')) {
+            throw new Error('Search path must not end with / but got: ' + searchPath);
+        }
+        console.log('Searching ' + searchPath);
+    });
+
     const globs = searchPaths.map((searchPath) => {
         return globPromise(searchPath + '/**/*indexeddb*/', {
             realpath: true,
@@ -67,7 +56,9 @@ searchPaths.forEach((searchPath) => {
         }, [])
         .unique();
 
-    const indexedDbRoots = (await Promise.all(potentialDirs.map((dir) => findIndexedDbRootInPath(dir))))
+    const indexedDbRoots = (
+        await Promise.all(potentialDirs.map((dir) => findIndexedDbRootInPath(dir)))
+    )
         .filter((roots) => roots.length > 0)
         .reduce((prev, current) => {
             return prev.concat(current);
@@ -96,7 +87,7 @@ searchPaths.forEach((searchPath) => {
             }),
         );
 
-        if (outputType === 'csv') {
+        if (options.csv) {
             const outputFile = 'discovered-indexeddb-' + timestampForFilename() + '.csv';
             const csvWriter = createObjectCsvWriter({
                 path: outputFile,
@@ -104,16 +95,16 @@ searchPaths.forEach((searchPath) => {
             });
             await csvWriter.writeRecords(csvRows);
             console.log('Wrote to ' + outputFile);
-        } else if (outputType === 'stdout') {
+        } else if (options.stdout) {
             const csvWriter = createObjectCsvStringifier({
                 header: csvHeaders,
             });
             console.log(csvWriter.getHeaderString().trim());
             console.log(csvWriter.stringifyRecords(csvRows).trim());
         } else {
-            throw new Error('Unsupported output type: ' + outputType);
+            throw new Error('Must use --stdout or --csv');
         }
     }
 
     printDbRoots(indexedDbRoots);
-})();
+};
