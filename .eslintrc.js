@@ -9,5 +9,7 @@ module.exports = {
     },
     extends: ['eslint:recommended'],
     ignorePatterns: ['node_modules'],
-    rules: {},
+    rules: {
+        'max-len': ['error', {code: 120, ignoreStrings: true}],
+    },
 };

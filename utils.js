@@ -23,8 +23,7 @@ async function getFolderSizeInMb(path) {
             if (err) {
                 reject(err);
             } else {
-                const sizeInMb =
-                    size === 0 ? 0 : (size / 1024 / 1024).toFixed(1);
+                const sizeInMb = size === 0 ? 0 : (size / 1024 / 1024).toFixed(1);
                 resolve(sizeInMb);
             }
         });

@@ -1,10 +1,7 @@
 #!/usr/bin/env node
 
 const homedir = require('os').homedir();
-const {
-    createObjectCsvWriter,
-    createObjectCsvStringifier,
-} = require('csv-writer');
+const {createObjectCsvWriter, createObjectCsvStringifier} = require('csv-writer');
 const {
     timestampForFilename,
     getFolderSizeInMb,
@@ -14,10 +11,7 @@ const {
 
 handleUncaughtExceptionsAndRejections();
 
-const outputType =
-    process.argv.length >= 3 && process.argv[2] === '--stdout'
-        ? 'stdout'
-        : 'csv';
+const outputType = process.argv.length >= 3 && process.argv[2] === '--stdout' ? 'stdout' : 'csv';
 
 const searchPaths = [
     // MacOS:
@@ -51,9 +45,7 @@ searchPaths.forEach((searchPath) => {
     if (!searchPath.startsWith('/')) {
         throw new Error('Search path must start with / but got: ' + searchPath);
     } else if (searchPath.endsWith('/')) {
-        throw new Error(
-            'Search path must not end with / but got: ' + searchPath,
-        );
+        throw new Error('Search path must not end with / but got: ' + searchPath);
     }
     console.log('Searching ' + searchPath);
 });
@@ -75,11 +67,7 @@ searchPaths.forEach((searchPath) => {
         }, [])
         .unique();
 
-    const indexedDbRoots = (
-        await Promise.all(
-            potentialDirs.map((dir) => findIndexedDbRootInPath(dir)),
-        )
-    )
+    const indexedDbRoots = (await Promise.all(potentialDirs.map((dir) => findIndexedDbRootInPath(dir))))
         .filter((roots) => roots.length > 0)
         .reduce((prev, current) => {
             return prev.concat(current);
@@ -109,8 +97,7 @@ searchPaths.forEach((searchPath) => {
         );
 
         if (outputType === 'csv') {
-            const outputFile =
-                'discovered-indexeddb-' + timestampForFilename() + '.csv';
+            const outputFile = 'discovered-indexeddb-' + timestampForFilename() + '.csv';
             const csvWriter = createObjectCsvWriter({
                 path: outputFile,
                 header: csvHeaders,
