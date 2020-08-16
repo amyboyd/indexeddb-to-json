@@ -32,9 +32,14 @@ async function getFolderSizeInMb(path) {
 }
 
 async function globPromise(pattern, options) {
+    options = Object.assign({silent: true, strict: false}, options);
     return new Promise((resolve, reject) => {
-        globWithCallback(pattern, options, function(err, matches) {
+        globWithCallback(pattern, options, function (err, matches) {
             if (err) {
+                if (err.message.includes('EPERM: operation not permitted')) {
+                    err.message +=
+                        " (try going to your Mac's System Preferences > Privacy > Full Disk Access, then grant access to Terminal/iTerm)";
+                }
                 reject(err);
             } else {
                 resolve(matches);
@@ -45,12 +50,12 @@ async function globPromise(pattern, options) {
 
 function handleUncaughtExceptionsAndRejections() {
     process.on('uncaughtException', function (e) {
-        console.error(e.message, e.stack);
+        console.error(e);
         process.exit(1);
     });
 
     process.on('unhandledRejection', function (e) {
-        console.error(e.message, e.stack);
+        console.error(e);
         process.exit(1);
     });
 }
