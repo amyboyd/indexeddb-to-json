@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env node -r ts-node/register
 
 process.on('uncaughtException', function (e) {
     console.error(e);
@@ -10,11 +10,11 @@ process.on('unhandledRejection', function (e) {
     process.exit(1);
 });
 
-const {Command} = require('commander');
-const extract = require('./extract');
-const discover = require('./discover');
+import {Command} from 'commander';
+import extract from './extract';
+import discover from './discover';
 
-const packageInfo = require(__dirname + '/../package.json');
+import packageInfo from '../package.json';
 
 const program = new Command()
     .name(packageInfo.name)

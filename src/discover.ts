@@ -1,8 +1,18 @@
-const homedir = require('os').homedir();
-const {createObjectCsvWriter, createObjectCsvStringifier} = require('csv-writer');
-const {timestampForFilename, getFolderSizeInMb, globPromise} = require('./utils');
+import {homedir} from 'os';
+import {createObjectCsvWriter, createObjectCsvStringifier} from 'csv-writer';
+import {timestampForFilename, getFolderSizeInMb, globPromise, unique} from './utils';
 
-module.exports = async function discover(options) {
+interface IndexedDBRoot {
+    path: string;
+    size: number;
+}
+
+interface CommandOptions {
+    csv: boolean;
+    stdout: boolean;
+}
+
+export default async function discover(options: CommandOptions): Promise<void> {
     const searchPaths = [
         // MacOS:
         `${homedir}/Library`,
@@ -18,7 +28,7 @@ module.exports = async function discover(options) {
 
     const ignoreDirs = ['**/.git/**', '**/node_modules/**'];
 
-    async function findIndexedDbRootInPath(path) {
+    async function findIndexedDbRootsInPath(path: string): Promise<string[]> {
         const roots = await globPromise('**/CURRENT', {
             cwd: path,
             realpath: true,
@@ -40,7 +50,7 @@ module.exports = async function discover(options) {
         console.log('Searching ' + searchPath);
     });
 
-    const globs = searchPaths.map((searchPath) => {
+    const globPromises: Promise<string[]>[] = searchPaths.map((searchPath) => {
         return globPromise(searchPath + '/**/*indexeddb*/', {
             realpath: true,
             nosort: true,
@@ -49,26 +59,28 @@ module.exports = async function discover(options) {
             ignore: ignoreDirs,
         });
     });
-    const potentialDirs = (await Promise.all(globs))
+
+    const potentialDirsDeep: string[][] = await Promise.all(globPromises);
+    let potentialDirs: string[] = potentialDirsDeep
         .filter((dir) => dir.length > 0)
         .reduce((prev, current) => {
             return prev.concat(current);
-        }, [])
-        .unique();
+        }, []);
+    potentialDirs = unique(potentialDirs);
 
-    const indexedDbRoots = (
-        await Promise.all(potentialDirs.map((dir) => findIndexedDbRootInPath(dir)))
-    )
-        .filter((roots) => roots.length > 0)
-        .reduce((prev, current) => {
+    const searchPromises: Promise<string[]>[] = potentialDirs.map(findIndexedDbRootsInPath);
+    const indexedDbRootsDeep: string[][] = await Promise.all(searchPromises);
+    let indexedDbRoots = indexedDbRootsDeep
+        .filter((roots: string[]) => roots.length > 0)
+        .reduce((prev: string[], current: string[]): string[] => {
             return prev.concat(current);
-        }, [])
-        .unique()
-        .sort((a, b) => a.localeCompare(b));
+        }, [] as string[]);
+    indexedDbRoots = unique(indexedDbRoots);
+    indexedDbRoots = indexedDbRoots.sort((a, b) => a.localeCompare(b));
 
     console.log('Found ' + indexedDbRoots.length + ' database(s)');
 
-    async function printDbRoots(roots) {
+    async function printDbRoots(roots: string[]) {
         if (roots.length === 0) {
             return;
         }
@@ -78,8 +90,8 @@ module.exports = async function discover(options) {
             {id: 'size', title: 'Size in MB'},
         ];
 
-        const csvRows = await Promise.all(
-            roots.map(async (root) => {
+        const csvRows: IndexedDBRoot[] = await Promise.all(
+            roots.map(async (root: string) => {
                 return {
                     path: root,
                     size: await getFolderSizeInMb(root),
@@ -99,7 +111,7 @@ module.exports = async function discover(options) {
             const csvWriter = createObjectCsvStringifier({
                 header: csvHeaders,
             });
-            console.log(csvWriter.getHeaderString().trim());
+            console.log(csvWriter.getHeaderString()!.trim());
             console.log(csvWriter.stringifyRecords(csvRows).trim());
         } else {
             throw new Error('Must use --stdout or --csv');
@@ -107,4 +119,4 @@ module.exports = async function discover(options) {
     }
 
     printDbRoots(indexedDbRoots);
-};
+}

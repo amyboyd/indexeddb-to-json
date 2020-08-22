@@ -1,18 +1,34 @@
-const fs = require('fs');
-const path = require('path');
-const os = require('os');
-const puppeteer = require('puppeteer');
-const copy = require('recursive-copy');
-const {timestampForFilename} = require('./utils');
+import {existsSync} from 'fs';
+import {promises as fsPromises} from 'fs';
+import path from 'path';
+import os from 'os';
+import puppeteer, {ConsoleMessage} from 'puppeteer';
+import copy from 'recursive-copy';
+import {timestampForFilename} from './utils';
+import {jsToEvaluateOnPage} from './extract-run-in-browser';
 
-module.exports = async function extract(source, options) {
-    if (!fs.existsSync(source)) {
+interface Database {
+    database: string;
+    stores: {
+        [key: string]: {
+            [key: string]: unknown;
+        };
+    };
+}
+
+interface CommandOptions {
+    verbose: boolean;
+    stdout: boolean;
+}
+
+export default async function extract(source: string, options: CommandOptions): Promise<void> {
+    if (!existsSync(source)) {
         throw new Error(`Source directory does not exist: ${source}`);
     }
 
     source = source.replace(/\/+$/, '');
 
-    if (!fs.existsSync(source + '/CURRENT')) {
+    if (!existsSync(source + '/CURRENT')) {
         throw new Error(`Source directory does not contain IndexedDB file: ${source}/CURRENT`);
     }
 
@@ -25,10 +41,10 @@ module.exports = async function extract(source, options) {
     if ((match1 = source.match(HOST_IN_SOURCE_PATH_REGEX)) && match1[1]) {
         host = match1[1].replace('_', '://');
     }
-    if (!host && fs.existsSync(source + '/LOG')) {
-        const logLines = fs.readFileSync(source + '/LOG', 'utf8').split(/\n/g);
+    if (!host && existsSync(source + '/LOG')) {
+        const logLines = (await fsPromises.readFile(source + '/LOG', 'utf8')).split(/\n/g);
         let match2;
-        for (let line of logLines) {
+        for (const line of logLines) {
             if ((match2 = line.match(HOST_IN_LOG_REUSING_LINE)) && match2[2]) {
                 host = match2[2].replace('_', '://');
                 break;
@@ -40,93 +56,11 @@ module.exports = async function extract(source, options) {
         throw new Error(`Host not figured out for ${source}`);
     }
 
-    const chromeDir = fs.mkdtempSync(path.join(os.tmpdir(), 'puppeteer-extract-'));
+    const chromeDir = await fsPromises.mkdtemp(path.join(os.tmpdir(), 'puppeteer-extract-'));
 
     console.log('Extracting from:', source);
     console.log('Host:', host);
     console.log('Temporary Chrome directory:', chromeDir);
-
-    const initialJsToEvaluateOnPage = async () => {
-        /* global window */
-
-        const jsToEvaluateOnPageForEachStore = async (
-            db,
-            connection,
-            storeName,
-            dbExportObject,
-        ) => {
-            return new Promise(function (resolveStore, rejectStore) {
-                const transaction = connection.result.transaction(storeName, 'readonly');
-                console.log(`Starting to read database "${db.name}" store "${storeName}"`);
-
-                transaction.onerror = (err) => {
-                    rejectStore(new Error(`Transaction error for store ${storeName}: ${err}`));
-                };
-                transaction.onabort = function (err) {
-                    rejectStore(new Error(`Transaction aborted for store ${storeName}: ${err}`));
-                };
-                const allStoreObjects = [];
-
-                const onTransactionCursor = (event) => {
-                    const cursor = event.target.result;
-                    if (cursor) {
-                        allStoreObjects.push(cursor.value);
-                        cursor.continue();
-                    } else {
-                        dbExportObject.stores[storeName] = allStoreObjects;
-                        resolveStore();
-                    }
-                };
-
-                transaction.objectStore(storeName).openCursor().onsuccess = onTransactionCursor;
-            });
-        };
-
-        const jsToEvaluateOnPageForEachDb = async (db) => {
-            console.log(`Database "${db.name}" version ${db.version}`);
-
-            return new Promise(function (resolveDb, rejectDb) {
-                const rejectFromError = (reason, error) =>
-                    rejectDb(new Error(`${reason}: ${error}`));
-
-                const connection = window.indexedDB.open(db.name);
-                connection.onsuccess = async () => {
-                    const objectStoreNames = Array.from(connection.result.objectStoreNames);
-                    const dbExportObject = {
-                        database: db.name,
-                        stores: {},
-                    };
-
-                    console.log(
-                        `Database "${db.name}" version ${db.version} has object stores:`,
-                        objectStoreNames,
-                    );
-
-                    const resolveStorePromises = objectStoreNames.map((storeName) =>
-                        jsToEvaluateOnPageForEachStore(db, connection, storeName, dbExportObject),
-                    );
-
-                    try {
-                        await Promise.all(resolveStorePromises);
-                    } catch (e) {
-                        rejectFromError('Error resolving object store', e);
-                        return;
-                    }
-
-                    resolveDb(dbExportObject);
-                };
-                connection.onerror = (e) => rejectFromError('Connection failed', e);
-                connection.onupgradeneeded = (e) => rejectFromError('Upgrade needed', e);
-                connection.onblocked = (e) => rejectFromError('Blocked', e);
-            });
-        };
-
-        const databases = await window.indexedDB.databases();
-        console.log(`Found ${databases.length} databases`);
-
-        const dbPromises = databases.map(jsToEvaluateOnPageForEachDb);
-        return Promise.all(dbPromises);
-    };
 
     const browser = await puppeteer.launch({
         executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
@@ -179,15 +113,15 @@ module.exports = async function extract(source, options) {
     console.log(`Copied IndexedDB to ${chromeIndexedDbDir}`);
 
     const lockfile = chromeIndexedDbDir + '/LOCK';
-    if (fs.existsSync(lockfile)) {
-        fs.unlinkSync(lockfile);
+    if (existsSync(lockfile)) {
+        await fsPromises.unlink(lockfile);
         console.log(`Deleted lockfile ${lockfile}`);
     }
 
     const sourceDatabasesDir = source
         .replace('IndexedDB', 'databases')
         .replace('.indexeddb.leveldb', '');
-    if (fs.existsSync(sourceDatabasesDir)) {
+    if (existsSync(sourceDatabasesDir)) {
         const chromeDatabasesDir = chromeIndexedDbDir
             .replace('IndexedDB', 'databases')
             .replace('.indexeddb.leveldb', '');
@@ -199,11 +133,11 @@ module.exports = async function extract(source, options) {
         const chromeDatabasesDotDb = chromeDir + '/Default/databases/Databases.db';
         const chromeDatabasesDotDbJournal = chromeDatabasesDotDb + '-journal';
 
-        if (fs.existsSync(sourceDatabasesDotDb)) {
+        if (existsSync(sourceDatabasesDotDb)) {
             await copy(sourceDatabasesDotDb, chromeDatabasesDotDb);
             console.log(`Copied Databases.db to ${chromeDatabasesDotDb}`);
         }
-        if (fs.existsSync(sourceDatabasesDotDbJournal)) {
+        if (existsSync(sourceDatabasesDotDbJournal)) {
             await copy(sourceDatabasesDotDbJournal, chromeDatabasesDotDbJournal);
             console.log(`Copied Databases.db-journal to ${chromeDatabasesDotDbJournal}`);
         }
@@ -224,27 +158,27 @@ module.exports = async function extract(source, options) {
     });
 
     if (options.verbose) {
-        page.on('console', (msg) => {
-            console.log(`Console from inside Chrome: ${msg._text}`);
+        page.on('console', (msg: ConsoleMessage) => {
+            console.log(`Console from inside Chrome: ${msg.text()}`);
         });
     }
 
     await page.goto(host);
 
-    const result = await page.evaluate(initialJsToEvaluateOnPage);
+    const result: Database[] = (await page.evaluate(jsToEvaluateOnPage)) as Database[];
     const databasesCount = result.length;
     const storesCount = result.reduce((prev, current) => {
         return prev + Object.keys(current.stores).length;
     }, 0);
 
-    if (fs.existsSync(chromeDir + '/chrome_debug.log')) {
-        const chromeDebugLog = fs.readFileSync(chromeDir + '/chrome_debug.log', 'utf8');
+    if (existsSync(chromeDir + '/chrome_debug.log')) {
+        const chromeDebugLog = await fsPromises.readFile(chromeDir + '/chrome_debug.log', 'utf8');
         console.error(`In chrome_debug.log:\n${chromeDebugLog}`);
     }
 
     await browser.close();
 
-    fs.rmdirSync(chromeDir, {
+    await fsPromises.rmdir(chromeDir, {
         recursive: true,
         maxRetries: 5,
         retryDelay: 1000,
@@ -253,17 +187,17 @@ module.exports = async function extract(source, options) {
 
     console.log(`Extracted ${databasesCount} database(s) containing ${storesCount} store(s)`);
 
-    const json = JSON.stringify(result, ' ', 4);
+    const json = JSON.stringify(result, null, '    ');
 
     if (options.stdout) {
         console.log('Result:\n', json);
     } else {
-        if (!fs.existsSync(outputDir + '/')) {
-            fs.mkdirSync(outputDir + '/');
+        if (!existsSync(outputDir + '/')) {
+            await fsPromises.mkdir(outputDir + '/');
         }
         const timestamp = timestampForFilename();
         const outputFile = outputDir + '/' + host.replace('://', '_') + '-' + timestamp + '.json';
-        fs.writeFileSync(outputFile, json);
+        await fsPromises.writeFile(outputFile, json);
         console.log(`Wrote JSON to ${outputFile}`);
     }
-};
+}

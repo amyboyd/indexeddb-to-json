@@ -1,7 +1,7 @@
-const getFolderSizeWithCallback = require('get-folder-size');
-const globWithCallback = require('glob');
+import getFolderSizeWithCallback from 'get-folder-size';
+import globWithCallback, {IOptions} from 'glob';
 
-function timestampForFilename() {
+export function timestampForFilename(): string {
     return new Date()
         .toISOString()
         .replace(/[/:]/g, '-')
@@ -9,31 +9,27 @@ function timestampForFilename() {
         .replace('T', '-at-');
 }
 
-function unique(array) {
+export function unique<T>(array: T[]): T[] {
     return Array.from(new Set(array));
 }
 
-Array.prototype.unique = function () {
-    return [...new Set(this)];
-};
-
-async function getFolderSizeInMb(path) {
+export async function getFolderSizeInMb(path: string): Promise<number> {
     return new Promise((resolve, reject) => {
         getFolderSizeWithCallback(path, function (err, size) {
             if (err) {
                 reject(err);
             } else {
-                const sizeInMb = size === 0 ? 0 : (size / 1024 / 1024).toFixed(1);
+                const sizeInMb: number = size === 0 ? 0 : Number((size / 1024 / 1024).toFixed(1));
                 resolve(sizeInMb);
             }
         });
     });
 }
 
-async function globPromise(pattern, options) {
+export async function globPromise(pattern: string, options: IOptions): Promise<string[]> {
     options = Object.assign({silent: true, strict: false}, options);
     return new Promise((resolve, reject) => {
-        globWithCallback(pattern, options, function (err, matches) {
+        globWithCallback(pattern, options, function (err, matches: string[]) {
             if (err) {
                 if (err.message.includes('EPERM: operation not permitted')) {
                     err.message +=
@@ -46,10 +42,3 @@ async function globPromise(pattern, options) {
         });
     });
 }
-
-module.exports = {
-    timestampForFilename,
-    unique,
-    getFolderSizeInMb,
-    globPromise,
-};
