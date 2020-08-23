@@ -1,4 +1,4 @@
-import {FastifyInstance, FastifyRequest, RouteOptions} from 'fastify';
+import {FastifyInstance, RouteOptions} from 'fastify';
 import extract from '../cli/extract';
 import {DatabaseType} from '../cli/discover';
 
@@ -6,9 +6,6 @@ interface QueryString {
     directory: string;
     asType: DatabaseType;
 }
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type Request = Omit<FastifyRequest, 'query'> & {query: QueryString | any};
 
 const queryStringSchema = {
     type: 'object',
@@ -34,9 +31,24 @@ const route: RouteOptions = {
             },
         },
     },
-    async handler(request: Request, reply) {
-        const directory: string = request.query.directory;
+    async handler(request, reply) {
+        const {directory, asType} = request.query as QueryString;
+
         const databases = await extract(directory, {return: true});
+
+        switch (asType) {
+            case 'Unknown':
+                break;
+            case 'Slack':
+                // @todo - create special Slack view.
+                break;
+            case 'Teams':
+                // @todo - create special Teams view.
+                break;
+            default:
+                throw new Error('Unsupported type: ' + asType);
+        }
+
         reply.send({databases});
     },
 };
