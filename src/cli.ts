@@ -13,6 +13,7 @@ process.on('unhandledRejection', function (e) {
 import {Command} from 'commander';
 import extract from './extract';
 import discover from './discover';
+import server from './server';
 
 import packageInfo from '../package.json';
 
@@ -26,12 +27,23 @@ program
     .command('extract <source>')
     .option('--stdout', 'Prints JSON to stdout instead of creating a file')
     .option('--verbose', 'Verbose logging')
-    .action(async (source, options) => await extract(source, options));
+    .action(async (source, options) => {
+        await extract(source, options);
+    });
 
 program
     .command('discover')
     .option('--stdout', 'Prints to stdout')
     .option('--csv', 'Prints to a CSV file')
-    .action(async (options) => await discover(options));
+    .action(async (options) => {
+        await discover(options);
+    });
+
+program
+    .command('server')
+    .option('-p, --port <port>', 'Port to use', '3000')
+    .action(async (options) => {
+        await server(options);
+    });
 
 program.parseAsync(process.argv);

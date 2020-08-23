@@ -8,11 +8,12 @@ interface IndexedDBRoot {
 }
 
 interface CommandOptions {
-    csv: boolean;
-    stdout: boolean;
+    csv?: boolean;
+    stdout?: boolean;
+    return?: boolean;
 }
 
-export default async function discover(options: CommandOptions): Promise<void> {
+export default async function discover(options: CommandOptions): Promise<void | string[]> {
     const searchPaths = [
         // MacOS:
         `${homedir}/Library`,
@@ -113,10 +114,14 @@ export default async function discover(options: CommandOptions): Promise<void> {
             });
             console.log(csvWriter.getHeaderString()!.trim());
             console.log(csvWriter.stringifyRecords(csvRows).trim());
-        } else {
-            throw new Error('Must use --stdout or --csv');
         }
     }
 
-    printDbRoots(indexedDbRoots);
+    if (options.csv || options.stdout) {
+        printDbRoots(indexedDbRoots);
+    } else if (options.return) {
+        return indexedDbRoots;
+    } else {
+        throw new Error('Must use --stdout or --csv');
+    }
 }
