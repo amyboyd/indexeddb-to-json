@@ -1,23 +1,25 @@
-import {FastifyInstance} from 'fastify';
+import {FastifyInstance, RouteOptions} from 'fastify';
 import discover from '../cli/discover';
 
-const opts = {
+const route: RouteOptions = {
+    method: 'GET',
+    url: '/discover.json',
     schema: {
         response: {
             200: {
                 type: 'object',
                 properties: {
-                    dirs: {type: 'array'},
+                    databases: {type: 'array'},
                 },
             },
         },
     },
+    handler: async (_request, reply) => {
+        const databases = await discover({return: true});
+        reply.send({databases});
+    },
 };
 
 export default function register(server: FastifyInstance): void {
-    server.get('/discover', opts, async (request, reply) => {
-        reply.send({
-            dirs: await discover({return: true}),
-        });
-    });
+    server.route(route);
 }

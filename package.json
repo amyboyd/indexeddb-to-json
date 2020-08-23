@@ -4,8 +4,8 @@
   "version": "0.0.5",
   "main": "src/cli/index.ts",
   "scripts": {
-    "lint-fix": "tsc && prettier --write 'src/**/*.js' 'src/**/*.ts'; eslint src/**/*.js src/**/*.ts .eslintrc.js --fix",
-    "lint-check": "tsc && prettier --check 'src/**/*.js' 'src/**/*.ts'; eslint src/**/*.js src/**/*.ts .eslintrc.js",
+    "lint-fix": "tsc && prettier --write 'src/**/*.js' 'src/**/*.ts' 'src/**/*.html'; eslint src/**/*.js src/**/*.ts .eslintrc.js --fix",
+    "lint-check": "tsc && prettier --check 'src/**/*.js' 'src/**/*.ts' 'src/**/*.html'; eslint src/**/*.js src/**/*.ts .eslintrc.js",
     "lf": "yarn lint-fix",
     "lc": "yarn lint-check"
   },

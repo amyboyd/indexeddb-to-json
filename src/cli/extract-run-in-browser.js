@@ -1,7 +1,7 @@
 const jsToEvaluateOnPage = async () => {
     /* global window */
 
-    const callbackForEachStore = async (db, connection, storeName, dbExportObject) => {
+    const callbackForEachStore = async (db, connection, storeName) => {
         return new Promise(function (resolveStore, rejectStore) {
             const transaction = connection.result.transaction(storeName, 'readonly');
             console.log(`Starting to read database "${db.name}" store "${storeName}"`);
@@ -12,16 +12,16 @@ const jsToEvaluateOnPage = async () => {
             transaction.onabort = function (err) {
                 rejectStore(new Error(`Transaction aborted for store ${storeName}: ${err}`));
             };
-            const allStoreObjects = [];
+
+            const values = [];
 
             const onTransactionCursor = (event) => {
                 const cursor = event.target.result;
                 if (cursor) {
-                    allStoreObjects.push(cursor.value);
+                    values.push(cursor.value);
                     cursor.continue();
                 } else {
-                    dbExportObject.stores[storeName] = allStoreObjects;
-                    resolveStore();
+                    resolveStore(values);
                 }
             };
 
@@ -39,8 +39,8 @@ const jsToEvaluateOnPage = async () => {
             connection.onsuccess = async () => {
                 const objectStoreNames = Array.from(connection.result.objectStoreNames);
                 const dbExportObject = {
-                    database: db.name,
-                    stores: {},
+                    databaseName: db.name,
+                    stores: [],
                 };
 
                 console.log(
@@ -48,9 +48,13 @@ const jsToEvaluateOnPage = async () => {
                     objectStoreNames,
                 );
 
-                const resolveStorePromises = objectStoreNames.map((storeName) =>
-                    callbackForEachStore(db, connection, storeName, dbExportObject),
-                );
+                const resolveStorePromises = objectStoreNames.map(async (storeName) => {
+                    const values = await callbackForEachStore(db, connection, storeName);
+                    dbExportObject.stores.push({
+                        storeName: storeName,
+                        values: values,
+                    });
+                });
 
                 try {
                     await Promise.all(resolveStorePromises);

@@ -16,6 +16,7 @@ module.exports = {
     ignorePatterns: ['node_modules'],
     rules: {
         '@typescript-eslint/no-non-null-assertion': 'off',
+        '@typescript-eslint/no-var-requires': 'off',
         'max-len': [
             'error',
             {

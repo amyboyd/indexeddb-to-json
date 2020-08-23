@@ -1,5 +1,5 @@
 import fastify from 'fastify';
-import getDiscover from '../server/get-discover';
+import {globPromise} from './utils';
 
 interface CommandOptions {
     port: string;
@@ -13,8 +13,13 @@ export default async function command(options: CommandOptions): Promise<void> {
         logger: true,
     });
 
-    getDiscover(server);
+    const endpoints = await globPromise(__dirname + '/../server/*.ts', {});
+    endpoints.forEach((endpoint) => {
+        require(endpoint).default(server);
+    });
 
     await server.listen({host, port});
     console.log(`Listening on http://${host}:${port}`);
+    console.log('Endpoints:');
+    console.log(server.printRoutes());
 }

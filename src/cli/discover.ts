@@ -2,9 +2,12 @@ import {homedir} from 'os';
 import {createObjectCsvWriter, createObjectCsvStringifier} from 'csv-writer';
 import {timestampForFilename, getFolderSizeInMb, globPromise, unique} from './utils';
 
+export type DatabaseType = 'Unknown' | 'Slack' | 'Teams';
+
 interface IndexedDBRoot {
-    path: string;
+    directory: string;
     size: number;
+    type: DatabaseType;
 }
 
 interface CommandOptions {
@@ -13,7 +16,7 @@ interface CommandOptions {
     return?: boolean;
 }
 
-export default async function discover(options: CommandOptions): Promise<void | string[]> {
+export default async function discover(options: CommandOptions): Promise<void | IndexedDBRoot[]> {
     const searchPaths = [
         // MacOS:
         `${homedir}/Library`,
@@ -79,26 +82,30 @@ export default async function discover(options: CommandOptions): Promise<void | 
     indexedDbRoots = unique(indexedDbRoots);
     indexedDbRoots = indexedDbRoots.sort((a, b) => a.localeCompare(b));
 
-    console.log('Found ' + indexedDbRoots.length + ' database(s)');
+    const databases: IndexedDBRoot[] = await Promise.all(
+        indexedDbRoots.map(async (directory: string) => {
+            const size = await getFolderSizeInMb(directory);
+            const type: DatabaseType = directory.toLowerCase().includes('slack')
+                ? 'Slack'
+                : directory.toLowerCase().includes('teams')
+                ? 'Teams'
+                : 'Unknown';
+            return {directory, size, type};
+        }),
+    );
 
-    async function printDbRoots(roots: string[]) {
-        if (roots.length === 0) {
+    console.log('Found ' + databases.length + ' database(s)');
+
+    async function printDatabases(databases: IndexedDBRoot[]) {
+        if (databases.length === 0) {
             return;
         }
 
         const csvHeaders = [
-            {id: 'path', title: 'Path'},
+            {id: 'directory', title: 'Directory'},
             {id: 'size', title: 'Size in MB'},
+            {id: 'type', title: 'Type'},
         ];
-
-        const csvRows: IndexedDBRoot[] = await Promise.all(
-            roots.map(async (root: string) => {
-                return {
-                    path: root,
-                    size: await getFolderSizeInMb(root),
-                };
-            }),
-        );
 
         if (options.csv) {
             const outputFile = 'discovered-indexeddb-' + timestampForFilename() + '.csv';
@@ -106,21 +113,21 @@ export default async function discover(options: CommandOptions): Promise<void | 
                 path: outputFile,
                 header: csvHeaders,
             });
-            await csvWriter.writeRecords(csvRows);
+            await csvWriter.writeRecords(databases);
             console.log('Wrote to ' + outputFile);
         } else if (options.stdout) {
             const csvWriter = createObjectCsvStringifier({
                 header: csvHeaders,
             });
             console.log(csvWriter.getHeaderString()!.trim());
-            console.log(csvWriter.stringifyRecords(csvRows).trim());
+            console.log(csvWriter.stringifyRecords(databases).trim());
         }
     }
 
     if (options.csv || options.stdout) {
-        printDbRoots(indexedDbRoots);
+        printDatabases(databases);
     } else if (options.return) {
-        return indexedDbRoots;
+        return databases;
     } else {
         throw new Error('Must use --stdout or --csv');
     }

@@ -7,21 +7,26 @@ import copy from 'recursive-copy';
 import {timestampForFilename} from './utils';
 import {jsToEvaluateOnPage} from './extract-run-in-browser';
 
+interface Store {
+    storeName: string;
+    values: unknown[];
+}
+
 interface Database {
-    database: string;
-    stores: {
-        [key: string]: {
-            [key: string]: unknown;
-        };
-    };
+    databaseName: string;
+    stores: Store[];
 }
 
 interface CommandOptions {
-    verbose: boolean;
-    stdout: boolean;
+    verbose?: boolean;
+    stdout?: boolean;
+    return?: boolean;
 }
 
-export default async function extract(source: string, options: CommandOptions): Promise<void> {
+export default async function extract(
+    source: string,
+    options: CommandOptions,
+): Promise<void | Database[]> {
     if (!existsSync(source)) {
         throw new Error(`Source directory does not exist: ${source}`);
     }
@@ -165,9 +170,9 @@ export default async function extract(source: string, options: CommandOptions): 
 
     await page.goto(host);
 
-    const result: Database[] = (await page.evaluate(jsToEvaluateOnPage)) as Database[];
-    const databasesCount = result.length;
-    const storesCount = result.reduce((prev, current) => {
+    const databases: Database[] = (await page.evaluate(jsToEvaluateOnPage)) as Database[];
+    const databasesCount = databases.length;
+    const storesCount = databases.reduce((prev, current) => {
         return prev + Object.keys(current.stores).length;
     }, 0);
 
@@ -187,10 +192,14 @@ export default async function extract(source: string, options: CommandOptions): 
 
     console.log(`Extracted ${databasesCount} database(s) containing ${storesCount} store(s)`);
 
-    const json = JSON.stringify(result, null, '    ');
+    if (options.return) {
+        return databases;
+    }
+
+    const json = JSON.stringify(databases, null, '    ');
 
     if (options.stdout) {
-        console.log('Result:\n', json);
+        console.log('Databases:\n', json);
     } else {
         if (!existsSync(outputDir + '/')) {
             await fsPromises.mkdir(outputDir + '/');

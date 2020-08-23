@@ -1,0 +1,191 @@
+<style>
+    a {
+        color: blue;
+    }
+
+    table {
+        border-collapse: collapse;
+    }
+
+    th,
+    td {
+        border: 1px solid gray;
+        margin: 0;
+        padding: 10px;
+        vertical-align: top;
+        text-align: left;
+    }
+
+    td.json {
+        font-family: monospace;
+        white-space: pre;
+    }
+</style>
+
+<script type="module">
+    import {html, render} from 'https://unpkg.com/htm/preact/index.mjs?module';
+    import {
+        useState,
+        useEffect,
+    } from 'https://unpkg.com/preact@latest/hooks/dist/hooks.module.js?module';
+
+    class Route {
+        name = null;
+        params = null;
+        constructor(name, params = {}) {
+            this.name = name;
+            this.params = params;
+        }
+    }
+
+    function App() {
+        const [route, setRoute] = useState(new Route('index'));
+
+        switch (route.name) {
+            case 'index':
+                return html`<${IndexPage} setRoute="${setRoute}" />`;
+            case 'browse-database':
+                return html`<${BrowseDatabasePage}
+                    database="${route.params.database}"
+                    setRoute="${setRoute}"
+                />`;
+            default:
+                return html`Unknown page: ${route}`;
+        }
+    }
+
+    function IndexPage({setRoute}) {
+        const [loading, setLoading] = useState(true);
+        const [databases, setDatabases] = useState(null);
+
+        useEffect(() => {
+            fetch('/discover.json')
+                .then((res) => res.json())
+                .then((res) => {
+                    setDatabases(res.databases);
+                    setLoading(false);
+                    console.log('Found ' + res.databases.length + ' databases');
+                });
+        }, []);
+
+        if (loading || !databases) {
+            return html`<h1>Searching for IndexedDB databases...</h1>`;
+        }
+
+        function openDatabase(database) {
+            setRoute(new Route('browse-database', {database}));
+        }
+
+        return html`
+            <h1>Found these IndexedDB databases</h1>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Database</th>
+                        <th>Size</th>
+                        <th>Type</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    ${databases.map(
+                        (database) => html`
+                            <tr
+                                key="${database.directory}"
+                                onClick="${() => openDatabase(database)}"
+                            >
+                                <td>
+                                    ${database.directory}
+                                </td>
+                                <td>
+                                    ${database.size} MB
+                                </td>
+                                <td>
+                                    ${database.type}
+                                </td>
+                            </tr>
+                        `,
+                    )}
+                </tbody>
+            </table>
+        `;
+    }
+
+    function BrowseDatabasePage({setRoute, database}) {
+        const [loading, setLoading] = useState(true);
+        const [databases, setDatabases] = useState(null);
+
+        useEffect(() => {
+            const extractUrl =
+                '/extract.json?directory=' +
+                encodeURIComponent(database.directory) +
+                '&asType=' +
+                encodeURIComponent(database.type);
+            fetch(extractUrl)
+                .then((res) => res.json())
+                .then((res) => {
+                    res.databases.forEach((database) => {
+                        database.stores.forEach((store) => {
+                            store.valuesFormatted = JSON.stringify(store.values, ' ', 4);
+                        });
+                    });
+
+                    setDatabases(res.databases);
+                    setLoading(false);
+                    console.log(
+                        'Found ' +
+                            res.databases.length +
+                            ' databases for directory ' +
+                            database.directory,
+                    );
+                });
+        }, []);
+
+        const backButton = html`<a onClick="${() => setRoute(new Route('index'))}">Back</a>`;
+
+        if (loading || !databases) {
+            return html`
+                ${backButton}
+                <h1>Loading databases from "${database.directory}"...</h1>
+            `;
+        }
+
+        return html`
+            ${backButton}
+            <h1>Viewing databases from "${database.directory}"</h1>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Database</th>
+                        <th>Store</th>
+                        <th>Values</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    ${databases.map((database) =>
+                        database.stores.map(
+                            (store) => html`
+                                <tr key="${database.databaseName}-${store.storeName}">
+                                    <td>
+                                        ${database.databaseName}
+                                    </td>
+                                    <td>
+                                        ${store.storeName}
+                                    </td>
+                                    <td class="json">
+                                        ${store.valuesFormatted}
+                                    </td>
+                                </tr>
+                            `,
+                        ),
+                    )}
+                </tbody>
+            </table>
+        `;
+    }
+
+    render(html`<${App} />`, document.body);
+</script>
