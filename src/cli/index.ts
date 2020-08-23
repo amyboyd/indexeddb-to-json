@@ -15,7 +15,7 @@ import extract from './extract';
 import discover from './discover';
 import server from './server';
 
-import packageInfo from '../package.json';
+import packageInfo from '../../package.json';
 
 const program = new Command()
     .name(packageInfo.name)

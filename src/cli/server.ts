@@ -1,5 +1,5 @@
 import fastify from 'fastify';
-import getDiscover from './server/get-discover';
+import getDiscover from '../server/get-discover';
 
 interface CommandOptions {
     port: string;

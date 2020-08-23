@@ -1,5 +1,5 @@
 import {FastifyInstance} from 'fastify';
-import discover from '../discover';
+import discover from '../cli/discover';
 
 const opts = {
     schema: {
