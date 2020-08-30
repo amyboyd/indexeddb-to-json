@@ -75,9 +75,8 @@ export default async function discover(options: CommandOptions): Promise<void | 
             return prev.concat(current);
         }, [] as string[]);
     indexedDbRootPaths = unique(indexedDbRootPaths);
-    indexedDbRootPaths = indexedDbRootPaths.sort((a, b) => a.localeCompare(b));
 
-    const indexedDbRoots: IndexedDBRoot[] = await Promise.all(
+    let indexedDbRoots: IndexedDBRoot[] = await Promise.all(
         indexedDbRootPaths.map(async (directory: string) => {
             const size = await getFolderSizeInMb(directory);
             const type: IndexedDBType = directory.toLowerCase().includes('slack')
@@ -104,6 +103,18 @@ export default async function discover(options: CommandOptions): Promise<void | 
     );
 
     console.log('Found ' + indexedDbRoots.length + ' IndexedDB root(s)');
+
+    indexedDbRoots = indexedDbRoots.sort((a, b) => {
+        if (
+            options.includeDatabaseCounts &&
+            typeof a.databaseCount === 'number' &&
+            typeof b.databaseCount === 'number'
+        ) {
+            return b.databaseCount! - a.databaseCount!;
+        } else {
+            return a.directory.localeCompare(b.directory);
+        }
+    });
 
     async function printRoots(roots: IndexedDBRoot[]) {
         if (roots.length === 0) {

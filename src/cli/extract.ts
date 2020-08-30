@@ -15,6 +15,15 @@ interface CommandOptions {
     includeStores?: boolean;
 }
 
+const HOST_IN_SOURCE_PATH_REGEX = /\/(https?_[a-z0-9\\.-]+)_(\d+)\.indexeddb\.leveldb/;
+const HOST_IN_LOG_REUSING_LINE = / Reusing (MANIFEST|old log) \/.+\/(https?_[a-z0-9\\.-]+)_(\d+)\.indexeddb\.leveldb/;
+const HOST_IS_CHROME_EXTENSION = /\/(chrome-extension_[a-z]+)_0\.indexeddb\.leveldb/;
+const CHROME_INSTALLED_PATH = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+
+// Having Chrome installed is strongly recommended, because it can decode IndexedDB much
+// better than Chromium. Chrome is also required to extract from extensions.
+const chromeIsInstalled = existsSync(CHROME_INSTALLED_PATH);
+
 export default async function extract(
     source: string,
     options: CommandOptions,
@@ -31,19 +40,38 @@ export default async function extract(
 
     const outputDir = 'indexeddb-to-json-output';
 
-    const HOST_IN_SOURCE_PATH_REGEX = /\/(https?_[a-z0-9\\.-]+)_0\.indexeddb\.leveldb/;
-    const HOST_IN_LOG_REUSING_LINE = / Reusing (MANIFEST|old log) \/.+\/(https?_[a-z0-9\\.-]+)_0\.indexeddb\.leveldb/;
     let host;
+    let port;
+    let isExtension;
+    let pathToExtension;
+
     let match1;
     if ((match1 = source.match(HOST_IN_SOURCE_PATH_REGEX)) && match1[1]) {
         host = match1[1].replace('_', '://');
+        port = Number(match1[2]);
     }
+
+    let match2;
+    if (!host && (match2 = source.match(HOST_IS_CHROME_EXTENSION)) && match2[1]) {
+        isExtension = true;
+        host = match2[1].replace('_', '://');
+        pathToExtension = source
+            .replace('/IndexedDB/chrome-extension_', '/Extensions/')
+            .replace('_0.indexeddb.leveldb', '');
+        const extensionSubDirs = (await fsPromises.readdir(pathToExtension)).sort();
+        pathToExtension += '/' + extensionSubDirs[extensionSubDirs.length - 1];
+        port = 0;
+    } else {
+        isExtension = false;
+    }
+
     if (!host && existsSync(source + '/LOG')) {
         const logLines = (await fsPromises.readFile(source + '/LOG', 'utf8')).split(/\n/g);
-        let match2;
+        let match3;
         for (const line of logLines) {
-            if ((match2 = line.match(HOST_IN_LOG_REUSING_LINE)) && match2[2]) {
-                host = match2[2].replace('_', '://');
+            if ((match3 = line.match(HOST_IN_LOG_REUSING_LINE)) && match3[2]) {
+                host = match3[2].replace('_', '://');
+                port = Number(match3[3]);
                 break;
             }
         }
@@ -52,6 +80,9 @@ export default async function extract(
     if (!host) {
         throw new Error(`Host not figured out for ${source}`);
     }
+    if (typeof port !== 'number') {
+        throw new Error(`Port not figured out for ${source}`);
+    }
 
     const chromeDir = await fsPromises.mkdtemp(path.join(os.tmpdir(), 'puppeteer-extract-'));
 
@@ -59,9 +90,16 @@ export default async function extract(
     console.log('Host:', host);
     console.log('Temporary Chrome directory:', chromeDir);
 
+    if (isExtension) {
+        const chromeExtensionDir = chromeDir + '/Default/Extensions/extract';
+        await copy(pathToExtension as string, chromeExtensionDir);
+        console.log(`Copied extension from ${pathToExtension} to ${chromeExtensionDir}`);
+        pathToExtension = chromeExtensionDir;
+    }
+
     const browser = await puppeteer.launch({
-        executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-        headless: true,
+        executablePath: chromeIsInstalled ? CHROME_INSTALLED_PATH : undefined,
+        headless: !isExtension,
         userDataDir: chromeDir,
         ignoreHTTPSErrors: true,
         args: [
@@ -79,7 +117,8 @@ export default async function extract(
             '--disable-default-apps',
             '--disable-explicit-dma-fences',
             '--disable-extensions-file-access-check',
-            '--disable-extensions',
+            isExtension ? `--disable-extensions-except=${pathToExtension}` : '--disable-extensions',
+            isExtension ? `--load-extension=${pathToExtension}` : '',
             '--disable-machine-cert-request',
             '--disable-site-isolation-trials',
             '--disable-sync',
@@ -104,8 +143,10 @@ export default async function extract(
     const chromeIndexedDbDir =
         chromeDir +
         '/Default/IndexedDB/' +
-        host.replace(/^(https?):\/\//, '$1_') +
-        '_0.indexeddb.leveldb';
+        host.replace(/^(http|https|chrome-extension):\/\//, '$1_') +
+        '_' +
+        port +
+        '.indexeddb.leveldb';
     await copy(source, chromeIndexedDbDir);
     console.log(`Copied IndexedDB to ${chromeIndexedDbDir}`);
 
@@ -160,7 +201,17 @@ export default async function extract(
         });
     }
 
-    await page.goto(host);
+    let urlToOpen;
+    if (isExtension) {
+        urlToOpen = host + '/manifest.json';
+    } else if (port === 0) {
+        urlToOpen = host;
+    } else if (port > 0) {
+        urlToOpen = host + ':' + port;
+    } else {
+        throw new Error(`URL not figured out for ${source}`);
+    }
+    await page.goto(urlToOpen);
 
     const includeStores = typeof options.includeStores === 'boolean' ? options.includeStores : true;
     const databases = (await page.evaluate(jsToEvaluateOnPage, {includeStores})) as Database[];

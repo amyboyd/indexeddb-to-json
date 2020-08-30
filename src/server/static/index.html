@@ -54,18 +54,27 @@
         }
     }
 
+    let rootsCache;
+
     function IndexPage({setRoute}) {
         const [loading, setLoading] = useState(true);
         const [roots, setRoots] = useState(null);
 
+        const onRootsLoaded = (roots) => {
+            setRoots(roots);
+            setLoading(false);
+            console.log('Found ' + roots.length + ' roots');
+            rootsCache = roots;
+        };
+
         useEffect(() => {
-            fetch('/discover.json?includeDatabaseCounts=true')
-                .then((res) => res.json())
-                .then((res) => {
-                    setRoots(res.indexedDbRoots);
-                    setLoading(false);
-                    console.log('Found ' + res.indexedDbRoots.length + ' roots');
-                });
+            if (rootsCache) {
+                onRootsLoaded(rootsCache);
+            } else {
+                fetch('/discover.json?includeDatabaseCounts=true')
+                    .then((res) => res.json())
+                    .then((res) => onRootsLoaded(res.indexedDbRoots));
+            }
         }, []);
 
         if (loading || !roots) {
