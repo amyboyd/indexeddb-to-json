@@ -1,10 +1,10 @@
 import {FastifyInstance, RouteOptions} from 'fastify';
 import extract from '../cli/extract';
-import {DatabaseType} from '../cli/discover';
+import {IndexedDBType} from '../types';
 
 interface QueryString {
     directory: string;
-    asType: DatabaseType;
+    asType: IndexedDBType;
 }
 
 const queryStringSchema = {

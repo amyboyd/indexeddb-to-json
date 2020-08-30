@@ -46,7 +46,7 @@
                 return html`<${IndexPage} setRoute="${setRoute}" />`;
             case 'browse-database':
                 return html`<${BrowseDatabasePage}
-                    database="${route.params.database}"
+                    root="${route.params.root}"
                     setRoute="${setRoute}"
                 />`;
             default:
@@ -56,53 +56,50 @@
 
     function IndexPage({setRoute}) {
         const [loading, setLoading] = useState(true);
-        const [databases, setDatabases] = useState(null);
+        const [roots, setRoots] = useState(null);
 
         useEffect(() => {
             fetch('/discover.json')
                 .then((res) => res.json())
                 .then((res) => {
-                    setDatabases(res.databases);
+                    setRoots(res.indexedDbRoots);
                     setLoading(false);
-                    console.log('Found ' + res.databases.length + ' databases');
+                    console.log('Found ' + res.indexedDbRoots.length + ' roots');
                 });
         }, []);
 
-        if (loading || !databases) {
-            return html`<h1>Searching for IndexedDB databases...</h1>`;
+        if (loading || !roots) {
+            return html`<h1>Searching for IndexedDB roots...</h1>`;
         }
 
-        function openDatabase(database) {
-            setRoute(new Route('browse-database', {database}));
+        function openDirectory(root) {
+            setRoute(new Route('browse-database', {root}));
         }
 
         return html`
-            <h1>Found these IndexedDB databases</h1>
+            <h1>Found these IndexedDB directories</h1>
 
             <table>
                 <thead>
                     <tr>
-                        <th>Database</th>
+                        <th>Directory</th>
                         <th>Size</th>
                         <th>Type</th>
                     </tr>
                 </thead>
 
                 <tbody>
-                    ${databases.map(
-                        (database) => html`
-                            <tr
-                                key="${database.directory}"
-                                onClick="${() => openDatabase(database)}"
-                            >
+                    ${roots.map(
+                        (root) => html`
+                            <tr key="${root.directory}" onClick="${() => openDirectory(root)}">
                                 <td>
-                                    ${database.directory}
+                                    ${root.directory}
                                 </td>
                                 <td>
-                                    ${database.size} MB
+                                    ${root.size} MB
                                 </td>
                                 <td>
-                                    ${database.type}
+                                    ${root.type}
                                 </td>
                             </tr>
                         `,
@@ -112,16 +109,16 @@
         `;
     }
 
-    function BrowseDatabasePage({setRoute, database}) {
+    function BrowseDatabasePage({setRoute, root}) {
         const [loading, setLoading] = useState(true);
         const [databases, setDatabases] = useState(null);
 
         useEffect(() => {
             const extractUrl =
                 '/extract.json?directory=' +
-                encodeURIComponent(database.directory) +
+                encodeURIComponent(root.directory) +
                 '&asType=' +
-                encodeURIComponent(database.type);
+                encodeURIComponent(root.type);
             fetch(extractUrl)
                 .then((res) => res.json())
                 .then((res) => {
@@ -137,7 +134,7 @@
                         'Found ' +
                             res.databases.length +
                             ' databases for directory ' +
-                            database.directory,
+                            root.directory,
                     );
                 });
         }, []);
@@ -147,13 +144,13 @@
         if (loading || !databases) {
             return html`
                 ${backButton}
-                <h1>Loading databases from "${database.directory}"...</h1>
+                <h1>Loading databases from "${root.directory}"...</h1>
             `;
         }
 
         return html`
             ${backButton}
-            <h1>Viewing databases from "${database.directory}"</h1>
+            <h1>Viewing databases from "${root.directory}"</h1>
 
             <table>
                 <thead>
