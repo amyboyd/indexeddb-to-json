@@ -1,4 +1,4 @@
-const jsToEvaluateOnPage = async () => {
+const jsToEvaluateOnPage = async (options) => {
     /* global window */
 
     const callbackForEachStore = async (db, connection, storeName) => {
@@ -74,8 +74,12 @@ const jsToEvaluateOnPage = async () => {
     const databases = await window.indexedDB.databases();
     console.log(`Found ${databases.length} databases`);
 
-    const dbPromises = databases.map(callbackForEachDb);
-    return Promise.all(dbPromises);
+    if (options.includeStores) {
+        const dbPromises = databases.map(callbackForEachDb);
+        return Promise.all(dbPromises);
+    } else {
+        return databases.map((database) => ({databaseName: database}));
+    }
 };
 
 module.exports = {

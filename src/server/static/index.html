@@ -59,7 +59,7 @@
         const [roots, setRoots] = useState(null);
 
         useEffect(() => {
-            fetch('/discover.json')
+            fetch('/discover.json?includeDatabaseCounts=true')
                 .then((res) => res.json())
                 .then((res) => {
                     setRoots(res.indexedDbRoots);
@@ -85,6 +85,8 @@
                         <th>Directory</th>
                         <th>Size</th>
                         <th>Type</th>
+                        <th>Databases</th>
+                        <th>Error</th>
                     </tr>
                 </thead>
 
@@ -100,6 +102,12 @@
                                 </td>
                                 <td>
                                     ${root.type}
+                                </td>
+                                <td>
+                                    ${root.databaseCount}
+                                </td>
+                                <td>
+                                    ${root.extractError}
                                 </td>
                             </tr>
                         `,

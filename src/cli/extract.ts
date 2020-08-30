@@ -6,21 +6,13 @@ import puppeteer, {ConsoleMessage} from 'puppeteer';
 import copy from 'recursive-copy';
 import {timestampForFilename} from './utils';
 import {jsToEvaluateOnPage} from './extract-run-in-browser';
-
-interface Store {
-    storeName: string;
-    values: unknown[];
-}
-
-interface Database {
-    databaseName: string;
-    stores: Store[];
-}
+import {Database} from '../types';
 
 interface CommandOptions {
     verbose?: boolean;
     stdout?: boolean;
     return?: boolean;
+    includeStores?: boolean;
 }
 
 export default async function extract(
@@ -39,8 +31,8 @@ export default async function extract(
 
     const outputDir = 'indexeddb-to-json-output';
 
-    const HOST_IN_SOURCE_PATH_REGEX = /\/(https?_[a-z0-9\\.]+)_0\.indexeddb\.leveldb/;
-    const HOST_IN_LOG_REUSING_LINE = / Reusing (MANIFEST|old log) \/.+\/(https?_[a-z0-9\\.]+)_0\.indexeddb\.leveldb/;
+    const HOST_IN_SOURCE_PATH_REGEX = /\/(https?_[a-z0-9\\.-]+)_0\.indexeddb\.leveldb/;
+    const HOST_IN_LOG_REUSING_LINE = / Reusing (MANIFEST|old log) \/.+\/(https?_[a-z0-9\\.-]+)_0\.indexeddb\.leveldb/;
     let host;
     let match1;
     if ((match1 = source.match(HOST_IN_SOURCE_PATH_REGEX)) && match1[1]) {
@@ -170,11 +162,18 @@ export default async function extract(
 
     await page.goto(host);
 
-    const databases: Database[] = (await page.evaluate(jsToEvaluateOnPage)) as Database[];
+    const includeStores = typeof options.includeStores === 'boolean' ? options.includeStores : true;
+    const databases = (await page.evaluate(jsToEvaluateOnPage, {includeStores})) as Database[];
     const databasesCount = databases.length;
-    const storesCount = databases.reduce((prev, current) => {
-        return prev + Object.keys(current.stores).length;
-    }, 0);
+
+    let storesCount;
+    if (includeStores) {
+        storesCount = databases.reduce((prev, current) => {
+            return prev + Object.keys(current.stores!).length;
+        }, 0);
+    } else {
+        storesCount = undefined;
+    }
 
     if (existsSync(chromeDir + '/chrome_debug.log')) {
         const chromeDebugLog = await fsPromises.readFile(chromeDir + '/chrome_debug.log', 'utf8');

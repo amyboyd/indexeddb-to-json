@@ -1,12 +1,14 @@
 import {homedir} from 'os';
 import {createObjectCsvWriter, createObjectCsvStringifier} from 'csv-writer';
 import {timestampForFilename, getFolderSizeInMb, globPromise, unique} from './utils';
-import {IndexedDBRoot, IndexedDBType} from '../types';
+import {Database, IndexedDBRoot, IndexedDBType} from '../types';
+import extract from './extract';
 
 interface CommandOptions {
     csv?: boolean;
     stdout?: boolean;
     return?: boolean;
+    includeDatabaseCounts?: boolean;
 }
 
 export default async function discover(options: CommandOptions): Promise<void | IndexedDBRoot[]> {
@@ -83,7 +85,21 @@ export default async function discover(options: CommandOptions): Promise<void | 
                 : directory.toLowerCase().includes('teams')
                 ? 'Teams'
                 : 'Unknown';
-            return {directory, size, type};
+            let extractError = undefined;
+            let databaseCount = undefined;
+            if (options.includeDatabaseCounts) {
+                try {
+                    const databases = (await extract(directory, {
+                        return: options.return,
+                        includeStores: false,
+                    })) as Database[];
+                    databaseCount = databases.length;
+                } catch (e) {
+                    extractError = e.message;
+                }
+            }
+
+            return {directory, size, type, databaseCount, extractError};
         }),
     );
 
@@ -99,6 +115,12 @@ export default async function discover(options: CommandOptions): Promise<void | 
             {id: 'size', title: 'Size in MB'},
             {id: 'type', title: 'Type'},
         ];
+        if (options.includeDatabaseCounts) {
+            csvHeaders.push({
+                id: 'databaseCount',
+                title: 'Database count',
+            });
+        }
 
         if (options.csv) {
             const outputFile = 'discovered-indexeddb-' + timestampForFilename() + '.csv';
