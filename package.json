@@ -16,7 +16,7 @@
     "get-folder-size": "^2.0.1",
     "glob": "^7.1.6",
     "puppeteer": "^2.1.1",
-    "recursive-copy": "https://github.com/amyboyd/recursive-copy#master",
+    "recursive-copy": "^2.0.11",
     "ts-node": "^9.0.0",
     "typescript": "^3.9.7"
   },
